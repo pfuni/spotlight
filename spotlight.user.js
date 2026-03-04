@@ -2,7 +2,7 @@
 // @name         Spotlight
 // @namespace    spotlight-web-launcher
 // @version      2.0.0
-// @author       upietrzy
+// @author       pfuni
 // @updateURL    https://github.com/pfuni/spotlight/raw/refs/heads/main/spotlight.user.js
 // @downloadURL  https://github.com/pfuni/spotlight/raw/refs/heads/main/spotlight.user.js
 // @match        *://*/*
@@ -11,6 +11,7 @@
 // @grant        GM_setValue
 // @grant        GM_addStyle
 // @grant        GM_registerMenuCommand
+// @grant        GM_openInTab
 // @require      https://unpkg.com/react@18.2.0/umd/react.production.min.js
 // @require      https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js
 // @connect      text.pollinations.ai
@@ -18,12 +19,17 @@
 // @connect      api.groq.com
 // @connect      openrouter.ai
 // @connect      *
+// @connect      github.com
+// @connect      raw.githubusercontent.com
 // @run-at       document-idle
 // @noframes
 // ==/UserScript==
 
 (function () {
   'use strict';
+
+  const SCRIPT_VERSION = '1.0.0';
+  const UPDATE_URL = 'https://github.com/pfuni/spotlight/raw/refs/heads/main/spotlight.user.js';
 
   const h = React.createElement;
   const { useState, useEffect, useRef, useCallback, useMemo } = React;
@@ -583,9 +589,16 @@
 `; }
 
   var styleEl = null;
+  var shadowHost = null;
   function applyThemeCSS(id) {
     var t = THEMES[id] || THEMES.midnight;
-    if (!styleEl) { styleEl = document.createElement('style'); styleEl.id = 'sl-css'; (document.head || document.documentElement).appendChild(styleEl); }
+    var root = shadowHost ? shadowHost.shadowRoot : null;
+    if (!styleEl) {
+      styleEl = document.createElement('style');
+      styleEl.id = 'sl-css';
+      if (root) root.appendChild(styleEl);
+      else (document.head || document.documentElement).appendChild(styleEl);
+    }
     styleEl.textContent = buildCSS(t);
   }
 
@@ -1090,19 +1103,85 @@
   }
 
   /* ════════════════════════════════════════════════════════════════════════════
+   *  CUSTOM AUTO-UPDATE CHECK
+   * ════════════════════════════════════════════════════════════════════════════ */
+  function checkForUpdate() {
+    try {
+      var lastCheck = _gmGet('sl_update_check', 0) || 0;
+      if (Date.now() - lastCheck < 3600000) return; // check at most once per hour
+      _gmSet('sl_update_check', Date.now());
+      _lsSet('sl_update_check', Date.now());
+
+      GM_xmlhttpRequest({
+        url: UPDATE_URL + '?t=' + Date.now(),
+        method: 'GET',
+        headers: { 'Cache-Control': 'no-cache' },
+        timeout: 15000,
+        onload: function (resp) {
+          try {
+            var text = resp.responseText || '';
+            var match = text.match(/@version\s+([\d.]+)/);
+            if (!match) return;
+            var remote = match[1];
+            if (remote !== SCRIPT_VERSION) {
+              console.log('[Spotlight] Update available: ' + SCRIPT_VERSION + ' → ' + remote);
+              // Open as a navigable .user.js so Tampermonkey intercepts it for install
+              var installUrl = 'https://github.com/pfuni/spotlight/raw/refs/heads/main/spotlight.user.js';
+              // Use GM_openInTab if available for cleaner behavior
+              if (typeof GM_openInTab === 'function') {
+                GM_openInTab(installUrl, { active: true });
+              } else {
+                var a = document.createElement('a');
+                a.href = installUrl;
+                a.target = '_blank';
+                a.rel = 'noopener';
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+              }
+            }
+          } catch (_) {}
+        },
+        onerror: function () {},
+        ontimeout: function () {},
+      });
+    } catch (_) {}
+  }
+
+  /* ════════════════════════════════════════════════════════════════════════════
    *  INIT
    * ════════════════════════════════════════════════════════════════════════════ */
   trackCurrentPage();
+  checkForUpdate();
 
   function init() {
     if (!document.body) { document.addEventListener('DOMContentLoaded', init); return; }
-    applyThemeCSS(getConfig().theme || 'midnight');
     var m = document.createElement('div');
     m.id = 'sl-root-' + Math.random().toString(36).slice(2, 8);
     m.style.cssText = 'position:fixed;top:0;left:0;z-index:2147483647;pointer-events:none;';
     document.body.appendChild(m);
-    if (ReactDOM.createRoot) ReactDOM.createRoot(m).render(h(App));
-    else ReactDOM.render(h(App), m);
+
+    // Shadow DOM isolates our UI from host page CSS
+    var shadow = m.attachShadow({ mode: 'open' });
+    shadowHost = m;
+
+    // Reset styles inside shadow to prevent inheritance
+    var resetStyle = document.createElement('style');
+    resetStyle.textContent = ':host{all:initial!important;position:fixed;top:0;left:0;z-index:2147483647;pointer-events:none;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif}';
+    shadow.appendChild(resetStyle);
+
+    // Theme CSS goes into the shadow root
+    styleEl = document.createElement('style');
+    styleEl.id = 'sl-css';
+    shadow.appendChild(styleEl);
+    applyThemeCSS(getConfig().theme || 'midnight');
+
+    // React render target inside shadow
+    var renderTarget = document.createElement('div');
+    shadow.appendChild(renderTarget);
+
+    if (ReactDOM.createRoot) ReactDOM.createRoot(renderTarget).render(h(App));
+    else ReactDOM.render(h(App), renderTarget);
   }
   init();
 
