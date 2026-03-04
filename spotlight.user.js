@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Spotlight
 // @namespace    spotlight-web-launcher
-// @version      2.0.0
+// @version      1.0.0
 // @author       pfuni
 // @updateURL    https://github.com/pfuni/spotlight/raw/refs/heads/main/spotlight.user.js
 // @downloadURL  https://github.com/pfuni/spotlight/raw/refs/heads/main/spotlight.user.js
@@ -484,6 +484,12 @@
 .sl-empty{padding:40px 16px;text-align:center;color:${t.textMuted};font-size:13px;line-height:1.6}
 .sl-empty svg{margin:0 auto 8px;display:block;opacity:.35}
 
+.sl-update{display:flex;align-items:center;gap:8px;margin:4px 8px;padding:8px 12px;background:${t.accentBg};border:1px solid ${t.borderFocus};border-radius:10px;color:${t.accent};font-size:12px;cursor:pointer;transition:opacity .12s;animation:sl-msg-in .2s ease-out}
+.sl-update:hover{opacity:.8}
+.sl-update-t{flex:1;line-height:1.4}
+.sl-update-v{font-weight:700}
+.sl-update-cmd{background:${t.kbdBg};color:${t.kbdText};padding:1px 6px;border-radius:4px;font-size:10px;font-family:'SF Mono',Consolas,'Courier New',monospace}
+
 /* AI Chat */
 .sl-ai-wrap{display:flex;flex:1;min-height:0}
 .sl-ai-side{width:170px;flex-shrink:0;border-right:1px solid ${t.border};display:flex;flex-direction:column;overflow:hidden}
@@ -922,6 +928,7 @@
     var _si = useState(0), si = _si[0], sSi = _si[1];
     var _cfg = useState(getConfig), cfg = _cfg[0], sCfg = _cfg[1];
     var _ail = useState(false), ail = _ail[0], sAil = _ail[1];
+    var _upd = useState(_updateAvailable), upd = _upd[0], sUpd = _upd[1];
     var ir = useRef(null);
     var hist = useMemo(getHistory, [vis]);
 
@@ -974,9 +981,18 @@
     }
 
     useEffect(function () { applyThemeCSS(cfg.theme || 'midnight'); }, [cfg.theme]);
+
+    // Listen for update check results
+    useEffect(function () {
+      function onUpdate(info) { sUpd(info); }
+      _updateListeners.push(onUpdate);
+      if (_updateAvailable) sUpd(_updateAvailable);
+      return function () { _updateListeners = _updateListeners.filter(function(f){ return f !== onUpdate; }); };
+    }, []);
+
     useEffect(function () { if (vis && ir.current && mode === 'search') setTimeout(function () { ir.current && ir.current.focus(); }, 50); }, [vis, mode]);
 
-    // Ctrl+Alt
+    // Ctrl+Alt toggle (capture phase on document so it always works)
     useEffect(function () {
       function onK(e) {
         if (e.ctrlKey && e.altKey) {
@@ -1010,10 +1026,15 @@
     var flat = useMemo(function () { return res.reduce(function (a, c) { return a.concat(c.items); }, []); }, [res]);
     useEffect(function () { if (si >= flat.length) sSi(Math.max(0, flat.length - 1)); }, [flat.length]);
 
-    function activate(item, nt) {
+    function activate(item) {
       if (item.type === 'ai') { var aiQ = item.aiQuery || q.trim(); sMode('ai'); sQ(''); if (aiQ) sendAI(aiQ); return; }
       if (item.type === 'calc') { if (navigator.clipboard) navigator.clipboard.writeText(item.value).catch(function () {}); doClose(); return; }
-      if (item.url) { if (nt) window.open(item.url, '_blank'); else location.href = item.url; doClose(); }
+      if (item.url) {
+        // Always open in a new tab so we never navigate the current page away
+        if (typeof GM_openInTab === 'function') GM_openInTab(item.url, { active: true });
+        else window.open(item.url, '_blank');
+        doClose();
+      }
     }
 
     function sendAI(text) {
@@ -1044,6 +1065,10 @@
     function updateCfg(u) { saveConfig(u); sCfg(u); }
 
     function onKey(e) {
+      // Stop ALL keystrokes from leaving our Shadow DOM so host pages
+      // (Reddit, GitHub, YouTube etc.) can't capture '/' or other keys
+      e.stopPropagation();
+
       if (e.key === 'Escape') {
         e.preventDefault();
         if (mode === 'ai' || mode === 'settings') { sMode('search'); sQ(''); sAil(false); } else doClose();
@@ -1062,7 +1087,8 @@
           return;
         }
         if (qt === '/settings' || qt === '/config') { sMode('settings'); return; }
-        if (flat[si]) activate(flat[si], e.ctrlKey || e.metaKey);
+        if (qt === '/update') { openUpdatePage(); return; }
+        if (flat[si]) activate(flat[si]);
       }
     }
 
@@ -1079,7 +1105,7 @@
       onNewSession: newSession, onDeleteSession: deleteSession, onSwitchSession: switchSession,
     });
     else if (mode === 'settings') content = h(SettingsPanel, { config: cfg, onAutoSave: updateCfg, onClose: function () { sMode('search'); sQ(''); } });
-    else content = h(ResultsList, { results: res, selectedIndex: si, onActivate: function (it) { activate(it, false); }, onHover: function (i) { sSi(i); } });
+    else content = h(ResultsList, { results: res, selectedIndex: si, onActivate: function (it) { activate(it); }, onHover: function (i) { sSi(i); } });
 
     return h('div', { className: 'sl-overlay' + (cls ? ' sl-closing' : ''), onClick: function (e) { if (e.target === e.currentTarget) doClose(); }, onKeyDown: onKey },
       h('div', { className: 'sl-box' + (mode === 'ai' ? ' sl-box-ai' : ''), onClick: function (e) { e.stopPropagation(); } },
@@ -1096,6 +1122,13 @@
               pill
             ),
         h('div', { className: 'sl-hr' }),
+        upd && mode === 'search' ? h('div', { className: 'sl-update', onClick: function () { openUpdatePage(); }, title: 'Click or type /update' },
+          h(LucideIcon, { name: 'download', size: 14 }),
+          h('span', { className: 'sl-update-t' },
+            'Update available: ', h('span', { className: 'sl-update-v' }, 'v' + upd.remote),
+            ' — type ', h('span', { className: 'sl-update-cmd' }, '/update'), ' to install'
+          )
+        ) : null,
         content,
         h(Footer, { mode: mode })
       )
@@ -1105,6 +1138,9 @@
   /* ════════════════════════════════════════════════════════════════════════════
    *  CUSTOM AUTO-UPDATE CHECK
    * ════════════════════════════════════════════════════════════════════════════ */
+  var _updateAvailable = null; // { current: '1.0.0', remote: '1.1.0' }
+  var _updateListeners = [];
+
   function checkForUpdate() {
     try {
       var lastCheck = _gmGet('sl_update_check', 0) || 0;
@@ -1125,20 +1161,8 @@
             var remote = match[1];
             if (remote !== SCRIPT_VERSION) {
               console.log('[Spotlight] Update available: ' + SCRIPT_VERSION + ' → ' + remote);
-              // Open as a navigable .user.js so Tampermonkey intercepts it for install
-              var installUrl = 'https://github.com/pfuni/spotlight/raw/refs/heads/main/spotlight.user.js';
-              // Use GM_openInTab if available for cleaner behavior
-              if (typeof GM_openInTab === 'function') {
-                GM_openInTab(installUrl, { active: true });
-              } else {
-                var a = document.createElement('a');
-                a.href = installUrl;
-                a.target = '_blank';
-                a.rel = 'noopener';
-                document.body.appendChild(a);
-                a.click();
-                a.remove();
-              }
+              _updateAvailable = { current: SCRIPT_VERSION, remote: remote };
+              _updateListeners.forEach(function (fn) { fn(_updateAvailable); });
             }
           } catch (_) {}
         },
@@ -1146,6 +1170,15 @@
         ontimeout: function () {},
       });
     } catch (_) {}
+  }
+
+  function openUpdatePage() {
+    var installUrl = 'https://github.com/pfuni/spotlight/raw/refs/heads/main/spotlight.user.js';
+    if (typeof GM_openInTab === 'function') {
+      GM_openInTab(installUrl, { active: true });
+    } else {
+      window.open(installUrl, '_blank');
+    }
   }
 
   /* ════════════════════════════════════════════════════════════════════════════
