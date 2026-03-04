@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Spotlight
 // @namespace    spotlight-web-launcher
-// @version      1.0.1
+// @version      1.0.0
 // @author       pfuni
 // @updateURL    https://github.com/pfuni/spotlight/raw/refs/heads/main/spotlight.user.js
 // @downloadURL  https://github.com/pfuni/spotlight/raw/refs/heads/main/spotlight.user.js
@@ -246,11 +246,34 @@
       name: 'Pollinations AI  ·  Free, no key',
       models: [
         { id: 'openai',            name: 'GPT-4o Mini' },
-        { id: 'qwen-safety',       name: 'Qwen3Guard 8B' },
-        { id: 'gemini-search',     name: 'Gemini 2.5 Flash' },
-        { id: 'qwen-character',     name: 'Qwen Characterh' },
+        { id: 'openai-large',      name: 'GPT-4o' },
+        { id: 'mistral',           name: 'Mistral Small' },
+        { id: 'mistral-large',     name: 'Mistral Large' },
+        { id: 'deepseek',          name: 'DeepSeek V3' },
+        { id: 'deepseek-r1',       name: 'DeepSeek R1' },
+        { id: 'qwen-coder',        name: 'Qwen 2.5 Coder' },
+        { id: 'llama',             name: 'Llama 3.3 70B' },
+        { id: 'claude-hybridspace', name: 'Claude Sonnet' },
       ],
-    }
+    },
+    groq: {
+      name: 'Groq  ·  API key required',
+      models: [
+        { id: 'llama-3.3-70b-versatile', name: 'Llama 3.3 70B' },
+        { id: 'llama-3.1-8b-instant',    name: 'Llama 3.1 8B (fast)' },
+        { id: 'mixtral-8x7b-32768',      name: 'Mixtral 8x7B' },
+        { id: 'gemma2-9b-it',            name: 'Gemma 2 9B' },
+      ],
+    },
+    openrouter: {
+      name: 'OpenRouter  ·  API key required  (many free models)',
+      models: [
+        { id: 'google/gemini-2.0-flash-exp:free',          name: 'Gemini 2.0 Flash (Free)' },
+        { id: 'meta-llama/llama-3.3-70b-instruct:free',    name: 'Llama 3.3 70B (Free)' },
+        { id: 'deepseek/deepseek-chat:free',                name: 'DeepSeek V3 (Free)' },
+        { id: 'qwen/qwen-2.5-72b-instruct:free',           name: 'Qwen 2.5 72B (Free)' },
+      ],
+    },
   };
 
   async function queryAI(messages, config) {
