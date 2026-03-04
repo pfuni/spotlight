@@ -284,10 +284,10 @@
     if (provider === 'pollinations') {
       return await queryPollinations(messages, model);
     } else if (provider === 'groq') {
-      if (!apiKey) throw new Error('Groq requires an API key. Add it in /settings → AI Provider.');
+      if (!apiKey) throw new Error('Groq requires an API key. Add it in /settings \u2192 AI Provider.');
       return await queryOpenAICompat('https://api.groq.com/openai/v1/chat/completions', apiKey, messages, model);
     } else if (provider === 'openrouter') {
-      if (!apiKey) throw new Error('OpenRouter requires an API key. Add it in /settings → AI Provider.');
+      if (!apiKey) throw new Error('OpenRouter requires an API key. Add it in /settings \u2192 AI Provider.');
       return await queryOpenAICompat('https://openrouter.ai/api/v1/chat/completions', apiKey, messages, model);
     }
     throw new Error('Unknown AI provider.');
@@ -450,7 +450,7 @@
 .sl-overlay.sl-closing{animation:sl-ov-out .15s ease-in forwards}
 .sl-overlay *{box-sizing:border-box;margin:0;padding:0}
 
-.sl-box{width:620px;max-width:92vw;max-height:68vh;background:${t.bg};backdrop-filter:blur(${t.blur}) saturate(180%);-webkit-backdrop-filter:blur(${t.blur}) saturate(180%);border-radius:16px;box-shadow:${t.shadow};overflow:hidden;display:flex;flex-direction:column;animation:sl-box-in .22s cubic-bezier(.16,1,.3,1)}
+.sl-box{width:680px;max-width:92vw;max-height:68vh;background:${t.bg};backdrop-filter:blur(${t.blur}) saturate(180%);-webkit-backdrop-filter:blur(${t.blur}) saturate(180%);border-radius:16px;box-shadow:${t.shadow};overflow:hidden;display:flex;flex-direction:column;animation:sl-box-in .22s cubic-bezier(.16,1,.3,1)}
 .sl-box.sl-box-ai{width:820px;height:72vh;max-height:72vh}
 .sl-closing .sl-box{animation:sl-box-out .15s ease-in forwards}
 
@@ -582,6 +582,25 @@
 .sl-list::-webkit-scrollbar,.sl-ai-w::-webkit-scrollbar,.sl-set::-webkit-scrollbar{width:4px}
 .sl-list::-webkit-scrollbar-track,.sl-ai-w::-webkit-scrollbar-track,.sl-set::-webkit-scrollbar-track{background:transparent}
 .sl-list::-webkit-scrollbar-thumb,.sl-ai-w::-webkit-scrollbar-thumb,.sl-set::-webkit-scrollbar-thumb{background:${t.scrollThumb};border-radius:2px}
+
+/* Shortcut Sidebar */
+.sl-sc-wrap{display:flex;flex:1;min-height:0}
+.sl-sc-side{width:160px;flex-shrink:0;border-right:1px solid ${t.border};display:flex;flex-direction:column;overflow:hidden}
+.sl-sc-side-h{padding:8px 10px 5px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:${t.textMuted};display:flex;align-items:center;gap:4px}
+.sl-sc-sl{flex:1;overflow-y:auto;padding:2px 4px}
+.sl-sc-si{display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:7px;cursor:pointer;font-size:11px;color:${t.textSecondary};transition:all .1s;margin-bottom:1px;overflow:hidden}
+.sl-sc-si:hover{background:${t.surfaceHover};color:${t.text}}
+.sl-sc-si-ic{font-size:13px;flex-shrink:0;width:18px;text-align:center}
+.sl-sc-si-t{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sl-sc-si-k{font-size:9px;color:${t.textMuted};background:${t.kbdBg};padding:1px 5px;border-radius:3px;flex-shrink:0;font-family:'SF Mono',Consolas,'Courier New',monospace}
+.sl-sc-empty{padding:12px 10px;font-size:11px;color:${t.textMuted};opacity:.5;text-align:center}
+.sl-sc-main{flex:1;display:flex;flex-direction:column;min-width:0}
+
+/* Shortcut match hint */
+.sl-sc-hint{display:flex;align-items:center;gap:6px;padding:5px 14px;background:${t.accentBg};border-bottom:1px solid ${t.border};font-size:11px;color:${t.accent};animation:sl-msg-in .15s ease-out}
+.sl-sc-hint-ic{font-size:13px}
+.sl-sc-hint-k{font-weight:700}
+.sl-sc-hint-enter{background:${t.kbdBg};color:${t.kbdText};padding:1px 5px;border-radius:3px;font-size:9px;font-family:'SF Mono',Consolas,'Courier New',monospace;margin-left:auto}
 
 /* Animations */
 @keyframes sl-ov-in{from{opacity:0}to{opacity:1}}
@@ -881,13 +900,22 @@
       ),
 
       h('div', { className: 'sl-set-s' }, h('div', { className: 'sl-set-l' }, 'Import / Export'),
-        h('textarea', { className: 'sl-sexp', placeholder: 'Paste JSON or click Export', value: ex, onChange: function (e) { sEx(e.target.value); }, rows: 3 }),
+        h('textarea', { className: 'sl-sexp', placeholder: 'Paste encoded config or click Export', value: ex, onChange: function (e) { sEx(e.target.value); }, rows: 2, style: { fontSize: '10px', wordBreak: 'break-all' } }),
         h('div', { className: 'sl-sact', style: { marginTop: '4px' } },
-          h('button', { className: 'sl-btn sl-bg', onClick: function () { sEx(JSON.stringify({ shortcuts: sc, aiProvider: prov, aiModel: mod, theme: th }, null, 2)); } }, h(LucideIcon, { name: 'download', size: 11 }), 'Export'),
           h('button', { className: 'sl-btn sl-bg', onClick: function () {
-            try { var im = JSON.parse(ex); if (im.shortcuts) sSc(im.shortcuts); if (im.aiProvider) chProv(im.aiProvider); if (im.aiModel) sMd(im.aiModel);
+            var data = JSON.stringify({ shortcuts: sc, aiProvider: prov, aiModel: mod, theme: th });
+            sEx(btoa(unescape(encodeURIComponent(data))));
+          } }, h(LucideIcon, { name: 'download', size: 11 }), 'Export'),
+          h('button', { className: 'sl-btn sl-bg', onClick: function () {
+            try {
+              var json = decodeURIComponent(escape(atob(ex.trim())));
+              var im = JSON.parse(json);
+              if (im.shortcuts) sSc(im.shortcuts);
+              if (im.aiProvider) chProv(im.aiProvider);
+              if (im.aiModel) sMd(im.aiModel);
               if (im.theme) { sTh(im.theme); applyThemeCSS(im.theme); }
-            } catch (_) { alert('Invalid JSON'); }
+              sEx('');
+            } catch (_) { alert('Invalid config string'); }
           } }, h(LucideIcon, { name: 'upload', size: 11 }), 'Import')
         )
       ),
@@ -908,6 +936,8 @@
       h('span', { className: 'sl-foot-i', key: 2 }, h('span', { className: 'sl-kbd' }, '⏎'), ' open'),
       h('span', { className: 'sl-foot-i', key: 3 }, h('span', { className: 'sl-kbd' }, '>ai'), ' chat'),
       h('span', { className: 'sl-foot-i', key: 4 }, h('span', { className: 'sl-kbd' }, '/settings')),
+      h('span', { className: 'sl-foot-i', key: 5 }, h('span', { className: 'sl-kbd' }, '/short')),
+      h('span', { className: 'sl-foot-i', key: 5 }, h('span', { className: 'sl-kbd' }, '/update')),
     ];
     else if (p.mode === 'ai') hints = [
       h('span', { className: 'sl-foot-i', key: 1 }, h('span', { className: 'sl-kbd' }, 'Esc'), ' back'),
@@ -929,6 +959,7 @@
     var _cfg = useState(getConfig), cfg = _cfg[0], sCfg = _cfg[1];
     var _ail = useState(false), ail = _ail[0], sAil = _ail[1];
     var _upd = useState(_updateAvailable), upd = _upd[0], sUpd = _upd[1];
+    var _shortKey = useState(''), shortKey = _shortKey[0], sShortKey = _shortKey[1];
     var ir = useRef(null);
     var hist = useMemo(getHistory, [vis]);
 
@@ -1071,7 +1102,7 @@
 
       if (e.key === 'Escape') {
         e.preventDefault();
-        if (mode === 'ai' || mode === 'settings') { sMode('search'); sQ(''); sAil(false); } else doClose();
+        if (mode === 'ai' || mode === 'settings' || mode === 'shortcut') { sMode('search'); sQ(''); sAil(false); sShortKey(''); } else doClose();
         return;
       }
       if (mode !== 'search') return;
@@ -1088,6 +1119,7 @@
         }
         if (qt === '/settings' || qt === '/config') { sMode('settings'); return; }
         if (qt === '/update') { openUpdatePage(); return; }
+        if (qt === '/short' || qt === '/shortcut') { sMode('shortcut'); sQ(''); sShortKey(''); return; }
         if (flat[si]) activate(flat[si]);
       }
     }
@@ -1097,6 +1129,7 @@
     var pill = null;
     if (mode === 'ai') pill = h('span', { className: 'sl-pill' }, h(LucideIcon, { name: 'sparkles', size: 10 }), 'AI');
     if (mode === 'settings') pill = h('span', { className: 'sl-pill' }, h(LucideIcon, { name: 'settings', size: 10 }), 'Settings');
+    if (mode === 'shortcut') pill = h('span', { className: 'sl-pill' }, h(LucideIcon, { name: 'bookmark', size: 10 }), 'Shortcut');
 
     var content;
     if (mode === 'ai') content = h(AIChat, {
@@ -1105,7 +1138,67 @@
       onNewSession: newSession, onDeleteSession: deleteSession, onSwitchSession: switchSession,
     });
     else if (mode === 'settings') content = h(SettingsPanel, { config: cfg, onAutoSave: updateCfg, onClose: function () { sMode('search'); sQ(''); } });
+    else if (mode === 'shortcut') {
+      var pageUrl = location.href;
+      var pageTitle = document.title || pageUrl;
+      function saveShort() {
+        var k = shortKey.trim().toLowerCase().replace(/\s+/g, '-');
+        if (!k) return;
+        var updated = Object.assign({}, cfg);
+        var sc = Object.assign({}, updated.shortcuts || {});
+        sc[k] = { url: pageUrl, title: pageTitle, icon: '\u26A1' };
+        updated.shortcuts = sc;
+        saveConfig(updated); sCfg(updated);
+        sShortKey(''); sMode('search'); sQ('');
+      }
+      content = h('div', { style: { padding: '24px 20px', textAlign: 'center' } },
+        h('div', { style: { marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', opacity: .6, fontSize: '12px' } },
+          h(LucideIcon, { name: 'bookmark', size: 13 }), 'Add current page as shortcut'
+        ),
+        h('div', { style: { fontSize: '11px', opacity: .4, marginBottom: '12px', wordBreak: 'break-all', lineHeight: '1.4' } },
+          h('div', { style: { fontWeight: 600, marginBottom: '2px' } }, pageTitle),
+          pageUrl
+        ),
+        h('input', {
+          className: 'sl-bar-input',
+          style: { width: '100%', textAlign: 'center', fontSize: '15px', padding: '8px 0' },
+          type: 'text', placeholder: 'Enter a key (e.g. github, docs, mail)',
+          value: shortKey, autoFocus: true, spellCheck: false, autoComplete: 'off',
+          onChange: function (e) { sShortKey(e.target.value); },
+          onKeyDown: function (e) {
+            e.stopPropagation();
+            if (e.key === 'Enter') { e.preventDefault(); saveShort(); }
+            if (e.key === 'Escape') { e.preventDefault(); sMode('search'); sQ(''); sShortKey(''); }
+          }
+        }),
+        h('div', { style: { marginTop: '12px', display: 'flex', gap: '8px', justifyContent: 'center' } },
+          h('button', { className: 'sl-btn sl-bp', onClick: saveShort }, h(LucideIcon, { name: 'plus', size: 11 }), 'Save'),
+          h('button', { className: 'sl-btn sl-bg', onClick: function () { sMode('search'); sQ(''); sShortKey(''); } }, 'Cancel')
+        )
+      );
+    }
     else content = h(ResultsList, { results: res, selectedIndex: si, onActivate: function (it) { activate(it); }, onHover: function (i) { sSi(i); } });
+
+    // Build shortcut match hint for search mode
+    var scMatch = null;
+    if (mode === 'search' && q.trim()) {
+      var ql2 = q.trim().toLowerCase();
+      var shortcuts = cfg.shortcuts || {};
+      var exactKey = Object.keys(shortcuts).find(function (k) { return k === ql2; });
+      if (exactKey) {
+        var sv = shortcuts[exactKey];
+        scMatch = { key: exactKey, title: sv.title || exactKey, url: sv.url, icon: sv.icon || '\u26A1' };
+      }
+    }
+
+    // Build shortcuts sidebar items
+    var scItems = [];
+    if (cfg.shortcuts) {
+      Object.keys(cfg.shortcuts).forEach(function (k) {
+        var v = cfg.shortcuts[k];
+        scItems.push({ key: k, title: v.title || k, url: v.url, icon: v.icon || '\u26A1' });
+      });
+    }
 
     return h('div', { className: 'sl-overlay' + (cls ? ' sl-closing' : ''), onClick: function (e) { if (e.target === e.currentTarget) doClose(); }, onKeyDown: onKey },
       h('div', { className: 'sl-box' + (mode === 'ai' ? ' sl-box-ai' : ''), onClick: function (e) { e.stopPropagation(); } },
@@ -1122,14 +1215,40 @@
               pill
             ),
         h('div', { className: 'sl-hr' }),
+        scMatch ? h('div', { className: 'sl-sc-hint' },
+          h('span', { className: 'sl-sc-hint-ic' }, scMatch.icon),
+          h('span', null, 'Shortcut: '),
+          h('span', { className: 'sl-sc-hint-k' }, scMatch.title),
+          h('span', { className: 'sl-sc-hint-enter' }, '\u23CE Enter')
+        ) : null,
         upd && mode === 'search' ? h('div', { className: 'sl-update', onClick: function () { openUpdatePage(); }, title: 'Click or type /update' },
           h(LucideIcon, { name: 'download', size: 14 }),
           h('span', { className: 'sl-update-t' },
             'Update available: ', h('span', { className: 'sl-update-v' }, 'v' + upd.remote),
-            ' — type ', h('span', { className: 'sl-update-cmd' }, '/update'), ' to install'
+            ' \u2014 type ', h('span', { className: 'sl-update-cmd' }, '/update'), ' to install'
           )
         ) : null,
-        content,
+        mode === 'search'
+          ? h('div', { className: 'sl-sc-wrap' },
+              scItems.length ? h('div', { className: 'sl-sc-side' },
+                h('div', { className: 'sl-sc-side-h' }, h(LucideIcon, { name: 'bookmark', size: 10 }), 'Shortcuts'),
+                h('div', { className: 'sl-sc-sl' },
+                  scItems.map(function (s) {
+                    return h('div', { className: 'sl-sc-si', key: s.key, title: s.url, onClick: function () {
+                      if (typeof GM_openInTab === 'function') GM_openInTab(s.url, { active: true });
+                      else window.open(s.url, '_blank');
+                      doClose();
+                    } },
+                      h('span', { className: 'sl-sc-si-ic' }, s.icon),
+                      h('span', { className: 'sl-sc-si-t' }, s.title),
+                      h('span', { className: 'sl-sc-si-k' }, s.key)
+                    );
+                  })
+                )
+              ) : null,
+              h('div', { className: 'sl-sc-main' }, content)
+            )
+          : content,
         h(Footer, { mode: mode })
       )
     );
