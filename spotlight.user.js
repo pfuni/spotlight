@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Spotlight
 // @namespace    spotlight-web-launcher
-// @version      1.0.0
+// @version      1.0.1
 // @author       pfuni
 // @updateURL    https://github.com/pfuni/spotlight/raw/refs/heads/main/spotlight.user.js
 // @downloadURL  https://github.com/pfuni/spotlight/raw/refs/heads/main/spotlight.user.js
